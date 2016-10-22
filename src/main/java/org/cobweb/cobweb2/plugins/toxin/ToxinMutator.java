@@ -34,15 +34,7 @@ public class ToxinMutator extends StatefulSpawnMutatorBase<ToxinState> implement
 		ToxinState state = getAgentState(agent);
 		state.toxicity *= (1.0f - state.agentParams.purgeRate.getValue());
 
-		agentCount[agent.getType()]++;
-		agentTypeToxin[agent.getType()] += state.toxicity;
-
-		if (state.toxicity > state.agentParams.toxicityThreshold.getValue()) {
-			state.poisoned = true;
-			agentTypePoisoned[agent.getType()]++;
-		}
-		else
-			state.poisoned = false;
+		updateStats(agent, state);
 
 		float effect = 1
 				+ Math.max(0, state.toxicity - state.agentParams.toxicityThreshold.getValue())
@@ -56,7 +48,7 @@ public class ToxinMutator extends StatefulSpawnMutatorBase<ToxinState> implement
 		float average = agentTypeToxin[agentType] / agentCount[agentType];
 		if (Float.isNaN(average))
 			average = 0;
-		return Arrays.asList(Float.toString(average) + " / " + agentTypePoisoned[agentType]);
+		return Arrays.asList(Float.toString(average), Integer.toString(agentTypePoisoned[agentType]));
 	}
 
 	@Override
@@ -77,27 +69,33 @@ public class ToxinMutator extends StatefulSpawnMutatorBase<ToxinState> implement
 		for (int i =0; i < agentTypePoisoned.length; i++)
 			totalPoisoned += agentTypePoisoned[i];
 
-		return Arrays.asList(Float.toString(average) + " / " + totalPoisoned);
+		return Arrays.asList(Float.toString(average), Integer.toString(totalPoisoned));
 	}
 
 	@Override
 	public Collection<String> logHeadersAgent() {
-		return Arrays.asList("Toxicity / Poisoned");
+		return Arrays.asList("Toxicity", "Poisoned");
 	}
 
 	@Override
 	public Collection<String> logHeaderTotal() {
-		return Arrays.asList("Toxicity / Poisoned");
+		return Arrays.asList("Toxicity", "Poisoned");
 	}
 
 	@Override
 	protected ToxinState stateForNewAgent(Agent agent) {
 		ToxinAgentParams agentParams = params.agentParams[agent.getType()];
+		ToxinState state = new ToxinState(agentParams.clone(), agentParams.initialToxicity);
+		updateStats(agent, state);
+		return state;
+	}
+
+	private void updateStats(Agent agent, ToxinState state) {
 		agentCount[agent.getType()]++;
-		agentTypeToxin[agent.getType()] += agentParams.initialToxicity;
-		if (agentParams.initialToxicity > agentParams.toxicityThreshold.getValue())
+		agentTypeToxin[agent.getType()] += state.toxicity;
+		if (state.isPoisoned()) {
 			agentTypePoisoned[agent.getType()]++;
-		return new ToxinState(agentParams.clone(), agentParams.initialToxicity);
+		}
 	}
 
 	@Override
